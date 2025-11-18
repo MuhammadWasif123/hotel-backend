@@ -43,7 +43,7 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(409, "User with email and username already exist");
   }
 
-  console.log("Checking required files for testing", req.files);
+  // console.log("Checking required files for testing", req.files);
 
   const avatarLocalPath = req.files?.avatar[0]?.path;
 
@@ -52,7 +52,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   const avatar = await uploadOnCloudinary(avatarLocalPath);
-  console.log(`Response from cloudinary ${avatar.url}`);
+  // console.log(`Response from cloudinary ${avatar.url}`);
 
   if (!avatar) {
     throw new ApiError(400, "Avatar file is required");
@@ -281,10 +281,59 @@ const verifyEmailOtp = asyncHandler(async (req, res) => {
   }
 });
 
+const resendEmailOtp = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  const user = await User.findOne({ email });
+  console.log(`This is the user we are getting from DB at resend Email Otp ${user}`)
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  if (user.isAccountVerified) {
+    throw new ApiError(200, "Account Already Verified");
+  }
+
+  if (
+    user.verifyOtpExpireAt &&
+    Date.now() < user.verifyOtpExpireAt - 8 * 60 * 1000
+  ) {
+    throw new ApiError(
+      429,
+      "Please wait at least 2 minutes before requesting a new OTP"
+    );
+  }
+
+  const otp = String(Math.floor(100000 + Math.random() * 900000));
+
+  const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
+
+  user.verifyOtp = hashedOtp;
+  user.verifyOtpExpireAt = Date.now() + 10 * 60 * 1000;
+  user.verifyOtpAttempts = 0;
+
+  await user.save({validateBeforeSave:false})
+
+  await sendOtpEmail(user.email, otp);
+
+  return res
+  .status(200)
+  .json(
+    new ApiResponse(
+      200,
+      {},
+      "A new OTP has been sent to your email"
+    )
+  )
+
+});
+
 export {
   registerUser,
   loginUser,
   logoutUser,
   refreshAcessToken,
   verifyEmailOtp,
+  resendEmailOtp
 };
