@@ -196,7 +196,8 @@ const refreshAcessToken = asyncHandler(async (req, res) => {
       process.env.REFRESH_TOKEN_SECRET
     );
 
-    const user = User.findById(decodedToken?._id);
+    const user = await User.findById(decodedToken?._id);
+    // console.log(`This is the user response we are getting from DB ${user}`)
 
     if (!user) {
       throw new ApiError(401, "Invalid Refresh Token");
@@ -285,7 +286,9 @@ const resendEmailOtp = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
   const user = await User.findOne({ email });
-  console.log(`This is the user we are getting from DB at resend Email Otp ${user}`)
+  console.log(
+    `This is the user we are getting from DB at resend Email Otp ${user}`
+  );
 
   if (!user) {
     throw new ApiError(404, "User not found");
@@ -313,20 +316,98 @@ const resendEmailOtp = asyncHandler(async (req, res) => {
   user.verifyOtpExpireAt = Date.now() + 10 * 60 * 1000;
   user.verifyOtpAttempts = 0;
 
-  await user.save({validateBeforeSave:false})
+  await user.save({ validateBeforeSave: false });
 
   await sendOtpEmail(user.email, otp);
 
   return res
-  .status(200)
-  .json(
-    new ApiResponse(
-      200,
-      {},
-      "A new OTP has been sent to your email"
-    )
-  )
+    .status(200)
+    .json(new ApiResponse(200, {}, "A new OTP has been sent to your email"));
+});
 
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    throw new ApiError(400, "Email is required");
+  }
+
+  const user = await User.findOne({ email });
+
+  //Generate OTP
+  const otp = String(Math.floor(100000 + Math.random() * 900000));
+
+  const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
+
+  user.resetOtp = hashedOtp;
+  user.resetOtpExpireAt = Date.now() + 10 * 60 * 1000;
+  await user.save({ validateBeforeSave: false });
+
+  await sendOtpEmail(email, otp);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Forgot Password OTP sent to Email"));
+});
+
+const verifyResetOtp = asyncHandler(async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      throw new ApiError(400, "Email and OTP are required");
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    if (user.resetOtpExpireAt < Date.now()) {
+      user.verifyOtp = "";
+      user.verifyOtpExpireAt = 0;
+      await user.save({ validateBeforeSave: false });
+
+      throw new ApiError(400, "OTP expired,please request a new one");
+    }
+
+    const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
+
+    if (hashedOtp !== user.verifyOtp) {
+      throw new ApiError(400, "Invalid OTP");
+    }
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, {}, "OTP verified successfully"));
+  } catch (error) {
+    throw new ApiError(500, error?.message || "Failed to verify OTP");
+  }
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  const { email, newPassword } = req.body;
+
+  if (!email || !newPassword) {
+    throw new ApiError(400, "Email and New Password required");
+  }
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    throw new ApiError(404, "User not found from DB");
+  }
+
+  user.password = newPassword;
+  user.resetOtp = "";
+  user.resetOtpExpireAt = 0;
+
+  await user.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password reset successfully"));
 });
 
 export {
@@ -335,5 +416,8 @@ export {
   logoutUser,
   refreshAcessToken,
   verifyEmailOtp,
-  resendEmailOtp
+  resendEmailOtp,
+  forgotPassword,
+  verifyResetOtp,
+  resetPassword,
 };

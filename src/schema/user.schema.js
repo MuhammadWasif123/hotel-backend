@@ -27,4 +27,14 @@ const loginSchema = yup.object({
     .required("Password is required"),
 });
 
-export { registerSchema,loginSchema };
+const otpSchema = yup.object({
+  email: yup
+    .string()
+    .email("Invalid email format")
+    .required("Email is required"),
+  otp: yup
+    .string()
+    .required("OTP is required"),
+});
+
+export { registerSchema,loginSchema,otpSchema };

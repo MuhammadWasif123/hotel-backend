@@ -1,8 +1,8 @@
 import {Router} from "express"
-import { registerUser,loginUser,logoutUser,refreshAcessToken,verifyEmailOtp,resendEmailOtp} from "../controllers/user.controller.js";
+import { registerUser,loginUser,logoutUser,refreshAcessToken,verifyEmailOtp,resendEmailOtp,forgotPassword} from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multure.middleware.js";
 import { validate } from "../middlewares/validateSchema.middleware.js";
-import { registerSchema,loginSchema} from "../schema/user.schema.js";
+import { registerSchema,loginSchema,otpSchema} from "../schema/user.schema.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 
@@ -31,8 +31,13 @@ router.route("/logout").post(
     logoutUser
 )
 
-router.route("/verify-email-otp").post(verifyEmailOtp)
+router.route("/verify-email-otp").post(validate(otpSchema),verifyEmailOtp)
 
 router.route("/resend-email-otp").post(resendEmailOtp)
+
+router.route("/forgot-password").post(forgotPassword)
+
+router.route("/reset-password").post(forgotPassword)
+
 
 export default router;
