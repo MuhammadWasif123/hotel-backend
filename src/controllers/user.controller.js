@@ -413,6 +413,15 @@ const resetPassword = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Password reset successfully"));
 });
 
+const changeCurrentPassword = asyncHandler(async(req,res)=>{
+  const {oldPassword,newPassword}= req.body;
+
+
+  const user = 
+
+
+})
+
 export {
   registerUser,
   loginUser,

@@ -41,5 +41,7 @@ router.route("/verify-reset-otp").post(verifyResetOtp)
 
 router.route("/reset-password").post(resetPassword)
 
+router.route("/change-password").post()
+
 
 export default router;
