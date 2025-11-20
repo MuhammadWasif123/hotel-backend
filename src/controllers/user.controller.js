@@ -365,16 +365,19 @@ const verifyResetOtp = asyncHandler(async (req, res) => {
     }
 
     if (user.resetOtpExpireAt < Date.now()) {
-      user.verifyOtp = "";
-      user.verifyOtpExpireAt = 0;
+      user.resetOtp = "";
+      user.resetOtpExpireAt = 0;
       await user.save({ validateBeforeSave: false });
 
       throw new ApiError(400, "OTP expired,please request a new one");
     }
-
+    
+    // console.log("This is the original otp we are getting from email",otp)
     const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
 
-    if (hashedOtp !== user.verifyOtp) {
+    // console.log("This is the hashed password",hashedOtp);
+
+    if (hashedOtp !== user.resetOtp) {
       throw new ApiError(400, "Invalid OTP");
     }
 
@@ -420,4 +423,5 @@ export {
   forgotPassword,
   verifyResetOtp,
   resetPassword,
+  
 };
